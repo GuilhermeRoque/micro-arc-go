@@ -1,0 +1,193 @@
+{{template "base" .}}
+
+{{define "content" }}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <h1 class="mt-5">Test microservices</h1>
+                <hr/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <button id="button-broker" type="button" class="btn btn-secondary">Echo Broker</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <hr/>
+
+                <form id="form-add-user">
+                    <label for="firstname-add"><strong>First Name</strong></label><br>
+                    <input type="text" id="firstname-add" name="first_name"><br>
+
+                    <label for="lastname-add"><strong>Last Name</strong></label><br>
+                    <input type="text" id="lastname-add" name="last_name"><br>
+
+                    <label for="email-add"><strong>Email</strong></label><br>
+                    <input type="text" id="email-add" name="email"><br>
+                    <label for="password"><strong>Password</strong></label><br>
+                    <input type="text" id="password-add" name="password"><br><br>
+                    <button id="button-add" type="submit" class="btn btn-secondary">Create</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col">
+                <hr/>
+
+                <form id="form-login">
+                    <label for="email"><strong>Email</strong></label><br>
+                    <input type="text" id="email" name="email"><br>
+                    <label for="password"><strong>Password</strong></label><br>
+                    <input type="text" id="password" name="password"><br><br>
+                    <button id="button-login" type="submit" class="btn btn-secondary">Login</button>
+                </form>
+            </div>
+        </div>
+
+
+        <div class="row">
+            <div class="col">
+                <hr/>
+
+                <form id="form-log">
+                    <label for="name-log"><strong>Name</strong></label><br>
+                    <input type="text" id="name-log" name="name"><br>
+
+                    <label for="level-log"><strong>Level</strong></label><br>
+                    <input type="text" id="level-log" name="level"><br><br>
+
+                    <label for="context-log"><strong>Context</strong></label><br>
+                    <input type="text" id="context-log" name="context"><br><br>
+
+                    <label for="data-log"><strong>Data</strong></label><br>
+                    <input type="text" id="data-log" name="data"><br><br>
+
+                    <button id="button-log" type="submit" class="btn btn-secondary">Log</button>
+                </form>
+            </div>
+        </div>
+
+
+        <div class="row">
+            <div class="col">
+                <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em;">
+                    <span class="text-muted">Output shows here...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <h4 class="mt-5">Sent</h4>
+                <div class="mt-1" style="outline: 1px solid silver; padding: 2em;">
+                    <pre id="payload"><span class="text-muted">Nothing sent yet...</span></pre>
+                </div>
+            </div>
+            <div class="col">
+                <h4 class="mt-5">Received</h4>
+                <div class="mt-1" style="outline: 1px solid silver; padding: 2em;">
+                    <pre id="received"><span class="text-muted">Nothing received yet...</span></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+{{end}}
+
+{{define "js"}}
+    <script>
+    let brokerBtn = document.getElementById("button-broker");
+    let loginBtn = document.getElementById("button-login");
+    let formLogin = document.getElementById("form-login");
+    let formAdd = document.getElementById("form-add-user");
+    let formLog = document.getElementById("form-log");
+
+    let output = document.getElementById("output");
+    let sent = document.getElementById("payload");
+    let recevied = document.getElementById("received");
+
+    function sendRequest(request, path){
+        fetch("http:\/\/localhost:8081"+path, request)
+        .then((response) => {
+            console.log("response", response)
+            response.json()
+            .then((data) => {
+                console.log("data", data)
+                sent.innerHTML = JSON.stringify(request, undefined, 4);
+                received.innerHTML = JSON.stringify(data, undefined, 4);
+                if (data.error | response.status !== 200) {
+                    console.log(data.message);
+                    output.innerHTML += `<br><strong>ERROR Response from broker service</strong>: ${data.message}`;
+                } else {
+                    output.innerHTML += `<br><strong>Response from broker service</strong>: ${data.message}`;
+                }
+            })
+            .catch((error) => {
+                output.innerHTML += "<br><br>Error: " + error;
+            })
+        })       
+        .catch((error) => {
+            output.innerHTML += "<br><br>Error: " + error;
+        })
+
+    }
+
+    function getPostRequest(event){
+        event.preventDefault()
+        const formData = new FormData(event.target)
+
+
+        let formDataObject = Object.fromEntries(formData.entries());
+        // Format the plain form data as JSON
+      
+        const request = {
+            method: 'POST',
+            body: JSON.stringify(formDataObject, undefined, 4),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        }
+
+        return request
+    }
+
+    formAdd.addEventListener('submit', (event) => {
+        const request = getPostRequest(event)
+        sendRequest(request, "/users")
+
+    });
+
+    formLogin.addEventListener('submit', (event) => {
+        const request = getPostRequest(event)
+        sendRequest(request, "/login")
+
+    });
+
+    formLog.addEventListener('submit', (event) => {
+        const request = getPostRequest(event)
+        sendRequest(request, "/logs")
+
+    });
+
+    brokerBtn.addEventListener("click", function() {
+        const payload = {
+            message: "Hello World",
+            data: {}
+        }
+        const request = {
+            method: 'POST',
+            body: JSON.stringify(payload, undefined, 4),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        }
+        sendRequest(request, "/echo")
+
+    })
+        
+    </script>
+{{end}}

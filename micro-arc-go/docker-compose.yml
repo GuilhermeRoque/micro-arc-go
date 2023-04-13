@@ -1,0 +1,90 @@
+version: '3'
+
+services:
+
+  front-end:
+    build:
+      context: ./../front-end
+      dockerfile: ./../front-end/Dockerfile
+    image: guilhermeroque/front-end
+    ports:
+     - "8080:8080"
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      - broker
+    volumes:
+      - ./../front-end/cmd/web/templates:/app/cmd/web/templates
+
+  broker:
+    build:
+      context: ./../broker
+      dockerfile: ./../broker/Dockerfile
+    image: guilhermeroque/broker
+    ports:
+     - "8081:8081"
+    environment:
+      AUTH_SERVICE_URL: "http://auth-service:8082"
+      LOGGER_SERVICE_URL: "http://logger-service:8084"
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  auth-service:
+    build:
+      context: ./../auth-service
+      dockerfile: ./../auth-service/Dockerfile
+    ports:
+      - "8082:8082"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      DSN: "host=postgres port=5432 user=postgres password=password dbname=users sslmode=disable timezone=UTC connect_timeout=5"
+    depends_on:
+      - postgres
+      - broker
+
+  logger-service:
+    build:
+      context: ./../logger-service
+      dockerfile: ./../logger-service/Dockerfile
+    ports:
+      - "8084:8084"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      DB_DATABASE: logs
+      DB_COLLECTION: logs
+      DB_USER: admin
+      DB_PASSWORD: password
+      DB_URL: mongodb://mongo:27017
+    depends_on:
+      - mongo
+
+  postgres:
+    image: "postgres:15.2-alpine"
+    ports:
+      - "5433:5432"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: users
+    volumes:
+      - ./db-data/postgres/:/var/lib/postgresql/data/
+
+  mongo:
+    image: 'mongo:6-jammy'
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: logs
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./db-data/mongo/:/data/db
